@@ -1,34 +1,31 @@
 <!DOCTYPE html>
 <html lang="ja">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>カップル</title>
-  <!-- ベーススタイル -->
-  <link rel="stylesheet" href="../../css/style.css">
-  <!-- ゲーム固有スタイル -->
-  <link rel="stylesheet" href="css/style.css" />
+  <title>カップル (Couple)</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
-
 <body>
-  <!-- ヘッダー読み込み -->
-  <div id="header-container"></div>
+
   <div class="container">
     <h1>カップル</h1>
+    
     <div class="buttons">
       <button id="start-btn">ゲーム開始</button>
-      <button id="reset-btn" disabled>再挑戦</button>
+      <button id="reset-btn" disabled>リセット</button>
     </div>
-    <div id="player-cards" class="card-grid"></div>
-    <div id="result"></div>
-  </div>
-  <button id="draw-btn" disabled>山札</button>
 
-  <!-- ヘッダー読み込み -->
-  <script src="../../model/functions.js"></script>
-  <!-- JavaScriptファイル読み込み -->
+    <div id="player-cards"></div>
+    
+    <div id="result"></div>
+
+    <div id="deck-area">
+        <button id="draw-btn" disabled>山札</button>
+        <div class="deck-label">山札 (DRAW)</div>
+    </div>
+  </div>
+
   <script src="js/script.js"></script>
 </body>
-
 </html>

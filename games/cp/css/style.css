@@ -10,10 +10,12 @@ body {
 }
 
 .container {
-  margin: 40px auto;
-  padding: 30px 40px;
-  width: 90%;
-  max-width: 600px;
+  margin: 20px auto;
+  padding: 30px;
+  width: 95%;
+  /* ▼ 横幅を広く修正 */
+  max-width: 1000px; 
+
   background: linear-gradient(145deg, #176b29, #0b3d15);
   border-radius: 12px;
   box-shadow:
@@ -24,9 +26,7 @@ body {
 }
 
 h1 {
-  margin-bottom: 25px;
-  font-weight: 700;
-  letter-spacing: 1.2px;
+  margin-bottom: 20px;
   text-shadow: 1px 1px 3px rgba(0,0,0,0.7);
 }
 
@@ -35,88 +35,122 @@ h1 {
 }
 
 button {
-  margin: 10px 12px;
-  padding: 12px 28px;
-  font-size: 1.1em;
+  margin: 0 10px;
+  padding: 10px 20px;
+  font-size: 1em;
   border: none;
-  border-radius: 8px;
+  border-radius: 5px;
   cursor: pointer;
-  color: #f0f0f0;
-  background-color: #2e7d32;
-  box-shadow: 0 5px 10px rgba(46, 125, 50, 0.6);
-  transition: background-color 0.3s ease, box-shadow 0.3s ease;
-  font-weight: 600;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  background-color: #f0f0f0;
+  color: #333;
+  font-weight: bold;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+button:hover {
+  background-color: #fff;
 }
 
 button:disabled {
-  background-color: #555;
+  background-color: #aaa;
+  color: #666;
   cursor: not-allowed;
-  box-shadow: none;
 }
 
-button:hover:not(:disabled) {
-  background-color: #1b4d20;
-  box-shadow: 0 8px 16px rgba(27, 77, 32, 0.8);
-}
-
+/* --- カードグリッドの設定 --- */
 #player-cards {
   display: grid;
-  grid-gap: 10px;
-  justify-content: center;
-  margin-top: 30px;
+  grid-template-columns: repeat(4, 1fr); /* 4列固定 */
+  gap: 10px; /* ▼ 間隔を狭く修正 */
+  margin-bottom: 20px;
+  min-height: 300px;
 }
 
 .cell {
-  width: 100px;
-  height: 145px;
+  aspect-ratio: 2 / 3; /* カードの比率を確保 */
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
 .card {
-  width: 100px;
-  height: 140px;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.7);
-  transition: transform 0.3s;
+  width: 100%;
+  height: auto;
+  border-radius: 6px;
+  box-shadow: 2px 2px 5px rgba(0,0,0,0.4);
   cursor: pointer;
+  transition: transform 0.1s;
 }
 
+.card:hover {
+  transform: translateY(-2px);
+}
+
+/* 選択中のカード */
 .card.selected {
-  outline: 3px solid yellow;
-  outline-offset: 2px;
+  border: 4px solid #ffeb3b; /* 黄色の枠 */
+  box-sizing: border-box;
+  transform: scale(0.95);
 }
 
 #result {
-  margin-top: 20px;
   font-size: 1.5em;
   font-weight: bold;
-  text-shadow: 1px 1px 3px rgba(0,0,0,0.6);
-  color: #ffff66;
-  min-height: 2em;
+  margin: 20px 0;
+  min-height: 1.5em;
+  text-shadow: 1px 1px 2px #000;
 }
 
-/* 山札ボタン右下固定 */
-#draw-btn {
-  position: fixed;
-  right: 20px;
-  bottom: 20px;
-  z-index: 100;
-}
-
-.cell {
-  width: 100px;
-  height: 145px;
+/* --- 山札エリア（中央下） --- */
+#deck-area {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   align-items: center;
+  margin-top: 30px;
+  border-top: 1px solid rgba(255,255,255,0.2);
+  padding-top: 20px;
 }
 
-.empty-cell {
-  width: 100%;
-  height: 100%;
-  background-color: transparent;
+#draw-btn {
+  /* トランプ裏面画像 */
+  background-image: url("https://deckofcardsapi.com/static/img/back.png");
+  background-size: cover;
+  background-position: center;
+  
+  width: 100px;  /* サイズ固定 */
+  height: 140px;
+  
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+  
+  /* 文字を隠す */
+  color: transparent;
+  font-size: 0;
+  padding: 0;
+  margin: 0;
+  
+  transition: transform 0.1s;
+}
+
+#draw-btn:hover:not(:disabled) {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.6);
+}
+
+#draw-btn:active:not(:disabled) {
+  transform: translateY(2px);
+}
+
+#draw-btn:disabled {
+  opacity: 0.0; /* 山札がなくなったら見えなくする */
+  cursor: default;
   pointer-events: none;
+}
+
+.deck-label {
+  margin-top: 8px;
+  font-size: 0.9em;
+  color: #aaa;
+  font-weight: bold;
 }

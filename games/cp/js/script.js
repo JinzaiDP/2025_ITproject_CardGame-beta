@@ -15,6 +15,7 @@ startBtn.addEventListener("click", startGame);
 resetBtn.addEventListener("click", resetGame);
 drawBtn.addEventListener("click", drawCard);
 
+// 値を比較用に正規化 (J,Q,K,Aを数値に)
 function normalizeValue(value) {
   const map = { "ACE": 1, "JACK": 11, "QUEEN": 12, "KING": 13 };
   if (typeof value === "string") {
@@ -24,12 +25,12 @@ function normalizeValue(value) {
 }
 
 function startGame() {
-  result.textContent = "";
-  selectedCard = null;
+  resetGameUI();
   gridRows = 4;
   gridCols = 4;
   grid = [];
 
+  // グリッド配列の初期化
   for (let r = 0; r < gridRows; r++) {
     grid[r] = new Array(gridCols).fill(null);
   }
@@ -38,27 +39,39 @@ function startGame() {
     .then(res => res.json())
     .then(data => {
       deckId = data.deck_id;
+      // 52枚すべて引いておく
       return fetch(`https://deckofcardsapi.com/api/deck/${deckId}/draw/?count=52`);
     })
     .then(res => res.json())
     .then(data => {
       drawPile = data.cards;
+      
+      // 最初の16枚を配置
       for (let i = 0; i < gridRows * gridCols; i++) {
         const r = Math.floor(i / gridCols);
         const c = i % gridCols;
-        grid[r][c] = drawPile.shift();
+        if (drawPile.length > 0) {
+            grid[r][c] = drawPile.shift();
+        }
       }
+      
       renderGrid();
       drawBtn.disabled = false;
       startBtn.disabled = true;
       resetBtn.disabled = false;
     })
     .catch(err => {
-      console.error("Error fetching deck:", err);
+      console.error("Error:", err);
+      result.textContent = "エラーが発生しました。リロードしてください。";
     });
 }
 
 function resetGame() {
+  resetGameUI();
+  startGame();
+}
+
+function resetGameUI() {
   selectedCard = null;
   grid = [];
   drawPile = [];
@@ -72,18 +85,18 @@ function resetGame() {
 function drawCard() {
   if (drawPile.length === 0) {
     drawBtn.disabled = true;
+    checkGameOver();
     return;
   }
 
   const card = drawPile.shift();
-  placeCard(card);     // 1. 置く
-  compressGrid();      // 2. 圧縮（縦方向）
-  renderGrid();        // 3. 描画
-  checkGameOver();     // 4. 終了チェック
+  placeCard(card);
+  renderGrid();
+  checkGameOver();
 }
 
 function placeCard(card) {
-  // 上から空きを探して配置（縦方向詰めに合うように）
+  // 左上から順に空きを探して配置
   for (let r = 0; r < gridRows; r++) {
     for (let c = 0; c < gridCols; c++) {
       if (grid[r][c] === null) {
@@ -102,32 +115,30 @@ function placeCard(card) {
 
 function renderGrid() {
   playerCards.innerHTML = "";
-  playerCards.style.display = "grid";
-  playerCards.style.gridTemplateColumns = `repeat(${gridCols}, 100px)`;
-  playerCards.style.gap = "4px";
 
   for (let r = 0; r < gridRows; r++) {
     for (let c = 0; c < gridCols; c++) {
       const card = grid[r][c];
-      if (!card) continue;
-
+      
+      // レイアウト用セル
       const cell = document.createElement("div");
       cell.className = "cell";
 
-      const img = document.createElement("img");
-      img.className = "card";
-      img.dataset.row = r;
-      img.dataset.col = c;
-      img.src = card.image;
-      img.alt = card.code;
-      img.onclick = () => cardClick(r, c);
+      if (card) {
+        const img = document.createElement("img");
+        img.className = "card";
+        img.src = card.image;
+        img.dataset.row = r;
+        img.dataset.col = c;
+        img.onclick = () => cardClick(r, c);
 
-      if (selectedCard && selectedCard.r === r && selectedCard.c === c) {
-        img.classList.add("selected");
-        img.style.border = "3px solid yellow";
+        if (selectedCard && selectedCard.r === r && selectedCard.c === c) {
+          img.classList.add("selected");
+        }
+        
+        cell.appendChild(img);
       }
-
-      cell.appendChild(img);
+      
       playerCards.appendChild(cell);
     }
   }
@@ -137,86 +148,105 @@ function cardClick(r, c) {
   const clicked = grid[r][c];
   if (!clicked) return;
 
-  console.log("Selected card:", selectedCard ? grid[selectedCard.r][selectedCard.c].value : null);
-  console.log("Clicked card:", clicked.value);
+  // 同じカードをクリックしたら選択解除
+  if (selectedCard && selectedCard.r === r && selectedCard.c === c) {
+      selectedCard = null;
+      renderGrid();
+      return;
+  }
 
+  // 1枚目の選択
   if (!selectedCard) {
     selectedCard = { r, c };
     renderGrid();
     return;
   }
 
+  // 2枚目のクリック（ペア判定）
   const selected = grid[selectedCard.r][selectedCard.c];
 
   if (
-    (r !== selectedCard.r || c !== selectedCard.c) &&
     isAdjacent(selectedCard.r, selectedCard.c, r, c) &&
     normalizeValue(selected.value) === normalizeValue(clicked.value)
   ) {
-    console.log("Pair found! Removing cards:", selected.value, clicked.value);
+    // ペア成立：削除
     grid[selectedCard.r][selectedCard.c] = null;
     grid[r][c] = null;
     selectedCard = null;
 
-    compressGrid();
+    compressGrid(); // ★ここが変更点（詰める処理）
     renderGrid();
-    showResultIfCleared();
+    checkGameOver();
   } else {
-    console.log("No pair:", {
-      selectedPos: selectedCard,
-      clickedPos: { r, c },
-      isAdj: isAdjacent(selectedCard.r, selectedCard.c, r, c),
-      valSelected: normalizeValue(selected.value),
-      valClicked: normalizeValue(clicked.value),
-    });
+    // ペア不成立
     selectedCard = { r, c };
     renderGrid();
   }
 }
 
+// ★修正した関数：隙間を左上に詰める
 function compressGrid() {
-  // 縦方向に圧縮（上に詰める）
-  for (let c = 0; c < gridCols; c++) {
-    const colCards = [];
-    for (let r = 0; r < gridRows; r++) {
-      if (grid[r][c] !== null) colCards.push(grid[r][c]);
-    }
-    for (let r = 0; r < gridRows; r++) {
-      grid[r][c] = r < colCards.length ? colCards[r] : null;
+  // 1. 盤面にあるすべてのカードをリストとして取得
+  const remainingCards = [];
+  for (let r = 0; r < gridRows; r++) {
+    for (let c = 0; c < gridCols; c++) {
+      if (grid[r][c] !== null) {
+        remainingCards.push(grid[r][c]);
+      }
     }
   }
 
-  // 空の行を削除（下から）
+  // 2. グリッドを一旦空にして、左上から順番に詰め直す
+  for (let r = 0; r < gridRows; r++) {
+    for (let c = 0; c < gridCols; c++) {
+      if (remainingCards.length > 0) {
+        grid[r][c] = remainingCards.shift();
+      } else {
+        grid[r][c] = null;
+      }
+    }
+  }
+
+  // 3. 下の行が完全に空なら行を削除 (ただし最低4行は維持)
   while (gridRows > 4 && grid[gridRows - 1].every(cell => cell === null)) {
     grid.pop();
     gridRows--;
   }
 }
 
+// 隣接チェック
 function isAdjacent(r1, c1, r2, c2) {
   const dr = Math.abs(r1 - r2);
   const dc = Math.abs(c1 - c2);
-  console.log(`isAdjacent check: (${r1},${c1}) vs (${r2},${c2}) -> dr=${dr}, dc=${dc}`);
   return (dr <= 1 && dc <= 1 && !(dr === 0 && dc === 0));
 }
 
-function showResultIfCleared() {
+function checkGameOver() {
+  let hasCardOnGrid = false;
   for (let r = 0; r < gridRows; r++) {
     for (let c = 0; c < gridCols; c++) {
       if (grid[r][c] !== null) {
-        result.textContent = "";
-        return;
+        hasCardOnGrid = true;
+        break;
       }
     }
   }
-  result.textContent = "🎉 すべてのカップルが見つかりました！ 🎉";
-  drawBtn.disabled = true;
-}
 
-function checkGameOver() {
-  if (drawPile.length === 0 && !hasPairs()) {
-    result.textContent = "🎉 すべてのカップルが見つかりました！ 🎉";
-    drawBtn.disabled = true;
+  if (drawPile.length === 0) {
+      drawBtn.disabled = true;
+  }
+
+  // クリア判定
+  if (!hasCardOnGrid && drawPile.length === 0) {
+      result.textContent = "🎉 GAME CLEAR! おめでとうございます！ 🎉";
+      result.style.color = "#4caf50";
+      return;
+  }
+
+  // 手詰まり判定
+  if (drawPile.length === 0 && hasCardOnGrid && !hasPairs()) {
+      result.textContent = "GAME OVER... (手詰まり)";
+      result.style.color = "#ff5252";
   }
 }
 
@@ -225,15 +255,18 @@ function hasPairs() {
     for (let c = 0; c < gridCols; c++) {
       const card = grid[r][c];
       if (!card) continue;
+      
       for (let dr = -1; dr <= 1; dr++) {
         for (let dc = -1; dc <= 1; dc++) {
           if (dr === 0 && dc === 0) continue;
           const nr = r + dr;
           const nc = c + dc;
-          if (nr < 0 || nr >= gridRows || nc < 0 || nc >= gridCols) continue;
-          const neighbor = grid[nr][nc];
-          if (neighbor && normalizeValue(neighbor.value) === normalizeValue(card.value)) {
-            return true;
+          
+          if (nr >= 0 && nr < gridRows && nc >= 0 && nc < gridCols) {
+             const neighbor = grid[nr][nc];
+             if (neighbor && normalizeValue(neighbor.value) === normalizeValue(card.value)) {
+               return true;
+             }
           }
         }
       }
